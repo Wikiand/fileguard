@@ -1,3 +1,4 @@
+
 package com.fileguard;
 
 import java.io.IOException;
@@ -58,10 +59,18 @@ public class FileMonitor {
         );
         System.out.println();
 
-        logEvent("MONITOR_STARTED");
+        logEvent(
+                "MONITOR_STARTED: "
+                        + directory.toAbsolutePath().normalize()
+                        + " | interval="
+                        + intervalSeconds
+                        + "s"
+        );
 
         Runtime.getRuntime().addShutdownHook(
-                new Thread(() -> logEvent("MONITOR_STOPPED"))
+                new Thread(() ->
+                        logEvent("MONITOR_STOPPED")
+                )
         );
 
         Set<String> previouslyReported =
@@ -93,8 +102,7 @@ public class FileMonitor {
                                     .format(TIME_FORMAT);
 
                     String message =
-                            "⚠ " + change.type() + ": "
-                                    + change.path();
+                            buildChangeMessage(change);
 
                     System.out.println(
                             "[" + timestamp + "] "
@@ -157,6 +165,34 @@ public class FileMonitor {
         }
     }
 
+    private String buildChangeMessage(
+            FileChange change) {
+
+        StringBuilder message =
+                new StringBuilder();
+
+        message.append("⚠ ")
+                .append(change.type())
+                .append(": ")
+                .append(change.path());
+
+        if (change.baselineHash() != null) {
+            message.append(
+                    " | baseline_hash="
+            )
+                    .append(change.baselineHash());
+        }
+
+        if (change.currentHash() != null) {
+            message.append(
+                    " | current_hash="
+            )
+                    .append(change.currentHash());
+        }
+
+        return message.toString();
+    }
+
     private void logEvent(String message) {
 
         try {
@@ -170,3 +206,4 @@ public class FileMonitor {
         }
     }
 }
+

@@ -1,3 +1,4 @@
+
 package com.fileguard;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
@@ -6,7 +7,9 @@ import java.nio.file.Path;
 
 public record FileChange(
         Path path,
-        ChangeType type
+        ChangeType type,
+        String baselineHash,
+        String currentHash
 ) {
 
     @JsonGetter("path")
@@ -14,3 +17,4 @@ public record FileChange(
         return path.toAbsolutePath().normalize().toString();
     }
 }
+

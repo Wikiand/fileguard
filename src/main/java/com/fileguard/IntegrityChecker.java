@@ -1,3 +1,4 @@
+
 package com.fileguard;
 
 import java.nio.file.Path;
@@ -21,27 +22,57 @@ public class IntegrityChecker {
 
         for (Path path : allPaths) {
 
-            boolean wasInBaseline = baseline.containsKey(path);
-            boolean isCurrentlyPresent = current.containsKey(path);
+            boolean wasInBaseline =
+                    baseline.containsKey(path);
+
+            boolean isCurrentlyPresent =
+                    current.containsKey(path);
 
             if (wasInBaseline && !isCurrentlyPresent) {
+
                 changes.add(
-                        new FileChange(path, ChangeType.DELETED)
+                        new FileChange(
+                                path,
+                                ChangeType.DELETED,
+                                baseline.get(path),
+                                null
+                        )
                 );
 
             } else if (!wasInBaseline && isCurrentlyPresent) {
+
                 changes.add(
-                        new FileChange(path, ChangeType.NEW)
+                        new FileChange(
+                                path,
+                                ChangeType.NEW,
+                                null,
+                                current.get(path)
+                        )
                 );
 
-            } else if (baseline.get(path).equals(current.get(path))) {
+            } else if (
+                    baseline.get(path)
+                            .equals(current.get(path))
+            ) {
+
                 changes.add(
-                        new FileChange(path, ChangeType.UNCHANGED)
+                        new FileChange(
+                                path,
+                                ChangeType.UNCHANGED,
+                                baseline.get(path),
+                                current.get(path)
+                        )
                 );
 
             } else {
+
                 changes.add(
-                        new FileChange(path, ChangeType.MODIFIED)
+                        new FileChange(
+                                path,
+                                ChangeType.MODIFIED,
+                                baseline.get(path),
+                                current.get(path)
+                        )
                 );
             }
         }
@@ -49,3 +80,4 @@ public class IntegrityChecker {
         return changes;
     }
 }
+

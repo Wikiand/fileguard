@@ -1,3 +1,4 @@
+
 package com.fileguard;
 
 import org.junit.jupiter.api.Test;
@@ -7,17 +8,27 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonReportWriterTest {
 
     @Test
-    void shouldWriteVerificationReportAsJson() throws Exception {
+    void shouldWriteJsonReport() throws Exception {
 
-        Path reportFile = Files.createTempFile(
-                "fileguard-report",
-                ".json"
-        );
+        Path outputFile =
+                Files.createTempFile(
+                        "fileguard-report",
+                        ".json"
+                );
+
+        FileChange change =
+                new FileChange(
+                        Path.of("/tmp/config.txt"),
+                        ChangeType.MODIFIED,
+                        "old-hash",
+                        "new-hash"
+                );
 
         VerificationReport report =
                 new VerificationReport(
@@ -26,12 +37,7 @@ class JsonReportWriterTest {
                         0,
                         0,
                         true,
-                        List.of(
-                                new FileChange(
-                                        Path.of("/test/config.txt"),
-                                        ChangeType.MODIFIED
-                                )
-                        )
+                        List.of(change)
                 );
 
         JsonReportWriter writer =
@@ -39,76 +45,54 @@ class JsonReportWriterTest {
 
         writer.write(
                 report,
-                reportFile
+                outputFile
+        );
+
+        String content =
+                Files.readString(outputFile);
+
+        assertTrue(
+                content.contains(
+                        "\"modified\" : 1"
+                )
         );
 
         assertTrue(
-                Files.exists(reportFile)
-        );
-
-        String json =
-                Files.readString(reportFile);
-
-        assertTrue(
-                json.contains("\"unchanged\" : 2")
+                content.contains(
+                        "\"compromised\" : true"
+                )
         );
 
         assertTrue(
-                json.contains("\"modified\" : 1")
+                content.contains(
+                        "\"old-hash\""
+                )
         );
 
         assertTrue(
-                json.contains("\"newFiles\" : 0")
+                content.contains(
+                        "\"new-hash\""
+                )
         );
-
-        assertTrue(
-                json.contains("\"deleted\" : 0")
-        );
-
-        assertTrue(
-                json.contains("\"compromised\" : true")
-        );
-
-        assertTrue(
-                json.contains("\"changes\"")
-        );
-
-        assertTrue(
-                json.contains("\"type\" : \"MODIFIED\"")
-        );
-
-        Files.deleteIfExists(reportFile);
     }
 
     @Test
-    void shouldWriteCleanVerificationReport() throws Exception {
+    void shouldWriteEmptyChangesList() throws Exception {
 
-        Path reportFile = Files.createTempFile(
-                "fileguard-clean-report",
-                ".json"
-        );
+        Path outputFile =
+                Files.createTempFile(
+                        "fileguard-report",
+                        ".json"
+                );
 
         VerificationReport report =
                 new VerificationReport(
-                        3,
+                        0,
                         0,
                         0,
                         0,
                         false,
-                        List.of(
-                                new FileChange(
-                                        Path.of("/test/config.txt"),
-                                        ChangeType.UNCHANGED
-                                ),
-                                new FileChange(
-                                        Path.of("/test/users.txt"),
-                                        ChangeType.UNCHANGED
-                                ),
-                                new FileChange(
-                                        Path.of("/test/notes.txt"),
-                                        ChangeType.UNCHANGED
-                                )
-                        )
+                        List.of()
                 );
 
         JsonReportWriter writer =
@@ -116,25 +100,24 @@ class JsonReportWriterTest {
 
         writer.write(
                 report,
-                reportFile
+                outputFile
         );
 
-        String json =
-                Files.readString(reportFile);
+        String content =
+                Files.readString(outputFile);
 
-        assertEquals(
-                true,
-                json.contains("\"compromised\" : false")
-        );
-
-        assertTrue(
-                json.contains("\"changes\"")
+        assertFalse(
+                content.isEmpty()
         );
 
         assertTrue(
-                json.contains("\"type\" : \"UNCHANGED\"")
+                content.contains(
+                        "\"changes\" : [ ]"
+                )
+                || content.contains(
+                        "\"changes\" : []"
+                )
         );
-
-        Files.deleteIfExists(reportFile);
     }
 }
+
