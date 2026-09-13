@@ -1,5 +1,7 @@
+
 package com.fileguard;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -12,6 +14,7 @@ public class FileMonitor {
 
     private final FileScanner scanner;
     private final IntegrityChecker checker;
+    private final MonitorLogger logger;
 
     private static final DateTimeFormatter TIME_FORMAT =
             DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -22,6 +25,10 @@ public class FileMonitor {
 
         this.scanner = scanner;
         this.checker = checker;
+        this.logger =
+                new MonitorLogger(
+                        Path.of("fileguard-monitor.log")
+                );
     }
 
     public List<FileChange> check(
@@ -80,11 +87,24 @@ public class FileMonitor {
                             LocalTime.now()
                                     .format(TIME_FORMAT);
 
+                    String message =
+                            "⚠ " + change.type() + ": "
+                                    + change.path();
+
                     System.out.println(
-                            "[" + timestamp + "] ⚠ "
-                                    + change.type() + ": "
-                                    + change.path()
+                            "[" + timestamp + "] "
+                                    + message
                     );
+
+                    try {
+                        logger.log(message);
+                    } catch (IOException e) {
+                        System.err.println(
+                                "Warning: Could not write "
+                                        + "monitor log: "
+                                        + e.getMessage()
+                        );
+                    }
                 }
             }
 
@@ -100,15 +120,28 @@ public class FileMonitor {
                         LocalTime.now()
                                 .format(TIME_FORMAT);
 
+                String statusMessage;
+
                 if (compromised) {
-                    System.out.println(
-                            "[" + timestamp + "] "
-                                    + "Integrity status: COMPROMISED"
-                    );
+                    statusMessage =
+                            "Integrity status: COMPROMISED";
                 } else {
-                    System.out.println(
-                            "[" + timestamp + "] "
-                                    + "Integrity status: OK"
+                    statusMessage =
+                            "Integrity status: OK";
+                }
+
+                System.out.println(
+                        "[" + timestamp + "] "
+                                + statusMessage
+                );
+
+                try {
+                    logger.log(statusMessage);
+                } catch (IOException e) {
+                    System.err.println(
+                            "Warning: Could not write "
+                                    + "monitor log: "
+                                    + e.getMessage()
                     );
                 }
 
@@ -135,3 +168,4 @@ public class FileMonitor {
         }
     }
 }
+
