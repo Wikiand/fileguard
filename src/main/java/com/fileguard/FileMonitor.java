@@ -1,8 +1,11 @@
+
 package com.fileguard;
 
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class FileMonitor {
 
@@ -45,28 +48,42 @@ public class FileMonitor {
         );
         System.out.println();
 
-        boolean previouslyCompromised = false;
+        Set<String> previouslyReported =
+                new HashSet<>();
 
         while (true) {
 
             List<FileChange> changes =
                     check(directory, baseline);
 
-            boolean compromised = false;
+            Set<String> currentChanges =
+                    new HashSet<>();
 
             for (FileChange change : changes) {
 
-                if (change.type() != ChangeType.UNCHANGED) {
-                    compromised = true;
+                if (change.type() == ChangeType.UNCHANGED) {
+                    continue;
+                }
 
-                    if (!previouslyCompromised) {
-                        System.out.println(
-                                "⚠ " + change.type() + ": "
-                                        + change.path()
-                        );
-                    }
+                String eventKey =
+                        change.type() + ":" + change.path();
+
+                currentChanges.add(eventKey);
+
+                if (!previouslyReported.contains(eventKey)) {
+
+                    System.out.println(
+                            "⚠ " + change.type() + ": "
+                                    + change.path()
+                    );
                 }
             }
+
+            boolean compromised =
+                    !currentChanges.isEmpty();
+
+            boolean previouslyCompromised =
+                    !previouslyReported.isEmpty();
 
             if (compromised != previouslyCompromised) {
 
@@ -83,7 +100,7 @@ public class FileMonitor {
                 System.out.println();
             }
 
-            previouslyCompromised = compromised;
+            previouslyReported = currentChanges;
 
             try {
                 Thread.sleep(
@@ -103,3 +120,4 @@ public class FileMonitor {
         }
     }
 }
+
