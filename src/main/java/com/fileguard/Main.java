@@ -1,4 +1,3 @@
-
 package com.fileguard;
 
 import java.nio.file.Path;
@@ -17,22 +16,32 @@ public class Main {
             return;
         }
 
-        if (args.length != 2 && args.length != 4) {
+        if (args.length != 2
+                && args.length != 4
+                && args.length != 6) {
+
             System.err.println(
-                    "Usage: java -jar fileguard.jar <scan|verify> <directory> [--baseline <file>]"
+                    "Usage: java -jar fileguard.jar " +
+                    "<scan|verify> <directory> " +
+                    "[--baseline <file>] " +
+                    "[--report <file>]"
             );
             System.exit(1);
         }
 
         String command = args[0];
         Path directory = Path.of(args[1]);
+
         Path baseline = getBaselinePath(args);
+        Path report = getReportPath(args);
 
         try {
             FileHasher hasher = new FileHasher();
             FileScanner scanner = new FileScanner(hasher);
-            BaselineManager baselineManager = new BaselineManager();
-            IntegrityChecker checker = new IntegrityChecker();
+            BaselineManager baselineManager =
+                    new BaselineManager();
+            IntegrityChecker checker =
+                    new IntegrityChecker();
 
             switch (command) {
 
@@ -44,12 +53,14 @@ public class Main {
                 );
 
                 case "verify" -> {
+
                     boolean compromised = verify(
                             directory,
                             scanner,
                             baselineManager,
                             checker,
-                            baseline
+                            baseline,
+                            report
                     );
 
                     if (compromised) {
@@ -69,38 +80,44 @@ public class Main {
             }
 
         } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
+            System.err.println(
+                    "Error: " + e.getMessage()
+            );
             System.exit(1);
         }
     }
 
     private static Path getBaselinePath(String[] args) {
 
-        if (args.length == 2) {
-            return DEFAULT_BASELINE;
+        for (int i = 2; i < args.length - 1; i++) {
+
+            if (args[i].equals("--baseline")) {
+                return Path.of(args[i + 1]);
+            }
         }
 
-        if (!args[2].equals("--baseline")) {
-            System.err.println(
-                    "Unknown option: " + args[2]
-            );
-            System.exit(1);
+        return DEFAULT_BASELINE;
+    }
+
+    private static Path getReportPath(String[] args) {
+
+        for (int i = 2; i < args.length - 1; i++) {
+
+            if (args[i].equals("--report")) {
+                return Path.of(args[i + 1]);
+            }
         }
 
-        if (args[3].isBlank()) {
-            System.err.println(
-                    "Baseline file path cannot be empty."
-            );
-            System.exit(1);
-        }
-
-        return Path.of(args[3]);
+        return null;
     }
 
     private static void printHelp() {
 
         System.out.println(
-                "Usage: java -jar fileguard.jar <scan|verify> <directory> [--baseline <file>]"
+                "Usage: java -jar fileguard.jar " +
+                "<scan|verify> <directory> " +
+                "[--baseline <file>] " +
+                "[--report <file>]"
         );
 
         System.out.println();
@@ -123,6 +140,10 @@ public class Main {
                 "  --baseline <file>    Specify a custom baseline file"
         );
 
+        System.out.println(
+                "  --report <file>      Write verification results as JSON"
+        );
+
         System.out.println();
 
         System.out.println("Examples:");
@@ -136,11 +157,18 @@ public class Main {
         );
 
         System.out.println(
-                "  java -jar fileguard.jar scan test-files --baseline baseline.db"
+                "  java -jar fileguard.jar " +
+                "scan test-files --baseline baseline.txt"
         );
 
         System.out.println(
-                "  java -jar fileguard.jar verify test-files --baseline baseline.db"
+                "  java -jar fileguard.jar " +
+                "verify test-files --baseline baseline.txt"
+        );
+
+        System.out.println(
+                "  java -jar fileguard.jar " +
+                "verify test-files --report report.json"
         );
     }
 
@@ -161,11 +189,15 @@ public class Main {
 
         System.out.println("FileGuard Scan");
         System.out.println("--------------");
-        System.out.println("Directory: " + directory);
-        System.out.println("Files scanned: " + hashes.size());
         System.out.println(
-                "Baseline saved: "
-                        + baseline.toAbsolutePath()
+                "Directory: " + directory
+        );
+        System.out.println(
+                "Files scanned: " + hashes.size()
+        );
+        System.out.println(
+                "Baseline saved: " +
+                baseline.toAbsolutePath()
         );
     }
 
@@ -174,7 +206,8 @@ public class Main {
             FileScanner scanner,
             BaselineManager baselineManager,
             IntegrityChecker checker,
-            Path baseline)
+            Path baseline,
+            Path report)
             throws Exception {
 
         Map<Path, String> baselineHashes =
@@ -189,8 +222,12 @@ public class Main {
                         current
                 );
 
-        System.out.println("FileGuard Verification");
-        System.out.println("----------------------");
+        System.out.println(
+                "FileGuard Verification"
+        );
+        System.out.println(
+                "----------------------"
+        );
 
         boolean compromised = false;
 
@@ -205,14 +242,16 @@ public class Main {
 
                 case UNCHANGED -> {
                     System.out.println(
-                            "✓ UNCHANGED: " + change.path()
+                            "✓ UNCHANGED: " +
+                            change.path()
                     );
                     unchanged++;
                 }
 
                 case MODIFIED -> {
                     System.out.println(
-                            "⚠ MODIFIED: " + change.path()
+                            "⚠ MODIFIED: " +
+                            change.path()
                     );
                     modified++;
                     compromised = true;
@@ -220,7 +259,8 @@ public class Main {
 
                 case NEW -> {
                     System.out.println(
-                            "⚠ NEW: " + change.path()
+                            "⚠ NEW: " +
+                            change.path()
                     );
                     newFiles++;
                     compromised = true;
@@ -228,7 +268,8 @@ public class Main {
 
                 case DELETED -> {
                     System.out.println(
-                            "⚠ DELETED: " + change.path()
+                            "⚠ DELETED: " +
+                            change.path()
                     );
                     deleted++;
                     compromised = true;
@@ -236,14 +277,52 @@ public class Main {
             }
         }
 
+        VerificationReport verificationReport =
+                new VerificationReport(
+                        unchanged,
+                        modified,
+                        newFiles,
+                        deleted,
+                        compromised
+                );
+
+        if (report != null) {
+
+            JsonReportWriter reportWriter =
+                    new JsonReportWriter();
+
+            reportWriter.write(
+                    verificationReport,
+                    report
+            );
+
+            System.out.println();
+            System.out.println(
+                    "JSON report saved: " +
+                    report.toAbsolutePath()
+            );
+        }
+
         System.out.println();
 
-        System.out.println("Verification Summary");
-        System.out.println("--------------------");
-        System.out.println("Unchanged: " + unchanged);
-        System.out.println("Modified:  " + modified);
-        System.out.println("New:       " + newFiles);
-        System.out.println("Deleted:   " + deleted);
+        System.out.println(
+                "Verification Summary"
+        );
+        System.out.println(
+                "--------------------"
+        );
+        System.out.println(
+                "Unchanged: " + unchanged
+        );
+        System.out.println(
+                "Modified:  " + modified
+        );
+        System.out.println(
+                "New:       " + newFiles
+        );
+        System.out.println(
+                "Deleted:   " + deleted
+        );
 
         System.out.println();
 
