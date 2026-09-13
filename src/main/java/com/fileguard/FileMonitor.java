@@ -1,4 +1,3 @@
-
 package com.fileguard;
 
 import java.io.IOException;
@@ -59,6 +58,12 @@ public class FileMonitor {
         );
         System.out.println();
 
+        logEvent("MONITOR_STARTED");
+
+        Runtime.getRuntime().addShutdownHook(
+                new Thread(() -> logEvent("MONITOR_STOPPED"))
+        );
+
         Set<String> previouslyReported =
                 new HashSet<>();
 
@@ -96,15 +101,7 @@ public class FileMonitor {
                                     + message
                     );
 
-                    try {
-                        logger.log(message);
-                    } catch (IOException e) {
-                        System.err.println(
-                                "Warning: Could not write "
-                                        + "monitor log: "
-                                        + e.getMessage()
-                        );
-                    }
+                    logEvent(message);
                 }
             }
 
@@ -135,15 +132,7 @@ public class FileMonitor {
                                 + statusMessage
                 );
 
-                try {
-                    logger.log(statusMessage);
-                } catch (IOException e) {
-                    System.err.println(
-                            "Warning: Could not write "
-                                    + "monitor log: "
-                                    + e.getMessage()
-                    );
-                }
+                logEvent(statusMessage);
 
                 System.out.println();
             }
@@ -167,5 +156,17 @@ public class FileMonitor {
             }
         }
     }
-}
 
+    private void logEvent(String message) {
+
+        try {
+            logger.log(message);
+        } catch (IOException e) {
+            System.err.println(
+                    "Warning: Could not write "
+                            + "monitor log: "
+                            + e.getMessage()
+            );
+        }
+    }
+}
