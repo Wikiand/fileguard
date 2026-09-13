@@ -1,7 +1,8 @@
-
 package com.fileguard;
 
 import java.nio.file.Path;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,9 @@ public class FileMonitor {
 
     private final FileScanner scanner;
     private final IntegrityChecker checker;
+
+    private static final DateTimeFormatter TIME_FORMAT =
+            DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public FileMonitor(
             FileScanner scanner,
@@ -72,8 +76,13 @@ public class FileMonitor {
 
                 if (!previouslyReported.contains(eventKey)) {
 
+                    String timestamp =
+                            LocalTime.now()
+                                    .format(TIME_FORMAT);
+
                     System.out.println(
-                            "⚠ " + change.type() + ": "
+                            "[" + timestamp + "] ⚠ "
+                                    + change.type() + ": "
                                     + change.path()
                     );
                 }
@@ -87,13 +96,19 @@ public class FileMonitor {
 
             if (compromised != previouslyCompromised) {
 
+                String timestamp =
+                        LocalTime.now()
+                                .format(TIME_FORMAT);
+
                 if (compromised) {
                     System.out.println(
-                            "Integrity status: COMPROMISED"
+                            "[" + timestamp + "] "
+                                    + "Integrity status: COMPROMISED"
                     );
                 } else {
                     System.out.println(
-                            "Integrity status: OK"
+                            "[" + timestamp + "] "
+                                    + "Integrity status: OK"
                     );
                 }
 
@@ -120,4 +135,3 @@ public class FileMonitor {
         }
     }
 }
-
