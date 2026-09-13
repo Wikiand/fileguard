@@ -1,6 +1,7 @@
 package com.fileguard;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,30 +17,88 @@ public class Main {
             return;
         }
 
-        if (args.length != 2
-                && args.length != 4
-                && args.length != 6) {
-
-            System.err.println(
-                    "Usage: java -jar fileguard.jar " +
-                    "<scan|verify> <directory> " +
-                    "[--baseline <file>] " +
-                    "[--report <file>]"
+        if (args.length < 2) {
+            printUsageError(
+                    "Missing command or directory."
             );
-            System.exit(1);
         }
 
         String command = args[0];
+
+        if (!command.equals("scan")
+                && !command.equals("verify")) {
+
+            printUsageError(
+                    "Unknown command: " + command
+            );
+        }
+
         Path directory = Path.of(args[1]);
 
-        Path baseline = getBaselinePath(args);
-        Path report = getReportPath(args);
+        Path baseline = DEFAULT_BASELINE;
+        Path report = null;
+
+        for (int i = 2; i < args.length; i++) {
+
+            String option = args[i];
+
+            switch (option) {
+
+                case "--baseline" -> {
+
+                    if (i + 1 >= args.length) {
+                        printUsageError(
+                                "--baseline requires a file path."
+                        );
+                    }
+
+                    if (args[i + 1].startsWith("--")) {
+                        printUsageError(
+                                "--baseline requires a file path."
+                        );
+                    }
+
+                    baseline = Path.of(args[++i]);
+                }
+
+                case "--report" -> {
+
+                    if (i + 1 >= args.length) {
+                        printUsageError(
+                                "--report requires a file path."
+                        );
+                    }
+
+                    if (args[i + 1].startsWith("--")) {
+                        printUsageError(
+                                "--report requires a file path."
+                        );
+                    }
+
+                    report = Path.of(args[++i]);
+                }
+
+                default -> printUsageError(
+                        "Unknown option: " + option
+                );
+            }
+        }
+
+        if (command.equals("scan") && report != null) {
+            printUsageError(
+                    "--report can only be used with verify."
+            );
+        }
 
         try {
             FileHasher hasher = new FileHasher();
-            FileScanner scanner = new FileScanner(hasher);
+
+            FileScanner scanner =
+                    new FileScanner(hasher);
+
             BaselineManager baselineManager =
                     new BaselineManager();
+
             IntegrityChecker checker =
                     new IntegrityChecker();
 
@@ -67,48 +126,35 @@ public class Main {
                         System.exit(1);
                     }
                 }
-
-                default -> {
-                    System.err.println(
-                            "Unknown command: " + command
-                    );
-                    System.err.println(
-                            "Use 'scan' or 'verify'."
-                    );
-                    System.exit(1);
-                }
             }
 
         } catch (Exception e) {
+
             System.err.println(
                     "Error: " + e.getMessage()
             );
+
             System.exit(1);
         }
     }
 
-    private static Path getBaselinePath(String[] args) {
+    private static void printUsageError(
+            String message) {
 
-        for (int i = 2; i < args.length - 1; i++) {
+        System.err.println(
+                "Error: " + message
+        );
 
-            if (args[i].equals("--baseline")) {
-                return Path.of(args[i + 1]);
-            }
-        }
+        System.err.println();
 
-        return DEFAULT_BASELINE;
-    }
+        System.err.println(
+                "Usage: java -jar fileguard.jar " +
+                "<scan|verify> <directory> " +
+                "[--baseline <file>] " +
+                "[--report <file>]"
+        );
 
-    private static Path getReportPath(String[] args) {
-
-        for (int i = 2; i < args.length - 1; i++) {
-
-            if (args[i].equals("--report")) {
-                return Path.of(args[i + 1]);
-            }
-        }
-
-        return null;
+        System.exit(1);
     }
 
     private static void printHelp() {
@@ -189,12 +235,15 @@ public class Main {
 
         System.out.println("FileGuard Scan");
         System.out.println("--------------");
+
         System.out.println(
                 "Directory: " + directory
         );
+
         System.out.println(
                 "Files scanned: " + hashes.size()
         );
+
         System.out.println(
                 "Baseline saved: " +
                 baseline.toAbsolutePath()
@@ -225,6 +274,7 @@ public class Main {
         System.out.println(
                 "FileGuard Verification"
         );
+
         System.out.println(
                 "----------------------"
         );
@@ -284,7 +334,7 @@ public class Main {
                         newFiles,
                         deleted,
                         compromised,
-                        changes
+                        new ArrayList<>(changes)
                 );
 
         if (report != null) {
@@ -298,6 +348,7 @@ public class Main {
             );
 
             System.out.println();
+
             System.out.println(
                     "JSON report saved: " +
                     report.toAbsolutePath()
@@ -309,18 +360,23 @@ public class Main {
         System.out.println(
                 "Verification Summary"
         );
+
         System.out.println(
                 "--------------------"
         );
+
         System.out.println(
                 "Unchanged: " + unchanged
         );
+
         System.out.println(
                 "Modified:  " + modified
         );
+
         System.out.println(
                 "New:       " + newFiles
         );
+
         System.out.println(
                 "Deleted:   " + deleted
         );
@@ -328,10 +384,13 @@ public class Main {
         System.out.println();
 
         if (compromised) {
+
             System.out.println(
                     "Integrity status: COMPROMISED"
             );
+
         } else {
+
             System.out.println(
                     "Integrity status: OK"
             );
