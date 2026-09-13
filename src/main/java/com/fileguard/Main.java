@@ -283,7 +283,8 @@ public class Main {
                         modified,
                         newFiles,
                         deleted,
-                        compromised
+                        compromised,
+                        changes
                 );
 
         if (report != null) {

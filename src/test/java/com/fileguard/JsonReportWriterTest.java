@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +25,13 @@ class JsonReportWriterTest {
                         1,
                         0,
                         0,
-                        true
+                        true,
+                        List.of(
+                                new FileChange(
+                                        Path.of("/test/config.txt"),
+                                        ChangeType.MODIFIED
+                                )
+                        )
                 );
 
         JsonReportWriter writer =
@@ -62,6 +69,14 @@ class JsonReportWriterTest {
                 json.contains("\"compromised\" : true")
         );
 
+        assertTrue(
+                json.contains("\"changes\"")
+        );
+
+        assertTrue(
+                json.contains("\"type\" : \"MODIFIED\"")
+        );
+
         Files.deleteIfExists(reportFile);
     }
 
@@ -79,7 +94,21 @@ class JsonReportWriterTest {
                         0,
                         0,
                         0,
-                        false
+                        false,
+                        List.of(
+                                new FileChange(
+                                        Path.of("/test/config.txt"),
+                                        ChangeType.UNCHANGED
+                                ),
+                                new FileChange(
+                                        Path.of("/test/users.txt"),
+                                        ChangeType.UNCHANGED
+                                ),
+                                new FileChange(
+                                        Path.of("/test/notes.txt"),
+                                        ChangeType.UNCHANGED
+                                )
+                        )
                 );
 
         JsonReportWriter writer =
@@ -96,6 +125,14 @@ class JsonReportWriterTest {
         assertEquals(
                 true,
                 json.contains("\"compromised\" : false")
+        );
+
+        assertTrue(
+                json.contains("\"changes\"")
+        );
+
+        assertTrue(
+                json.contains("\"type\" : \"UNCHANGED\"")
         );
 
         Files.deleteIfExists(reportFile);
