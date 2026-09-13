@@ -26,7 +26,8 @@ public class Main {
         String command = args[0];
 
         if (!command.equals("scan")
-                && !command.equals("verify")) {
+                && !command.equals("verify")
+                && !command.equals("monitor")) {
 
             printUsageError(
                     "Unknown command: " + command
@@ -91,7 +92,9 @@ public class Main {
         }
 
         try {
-            FileHasher hasher = new FileHasher();
+
+            FileHasher hasher =
+                    new FileHasher();
 
             FileScanner scanner =
                     new FileScanner(hasher);
@@ -110,6 +113,24 @@ public class Main {
                         baselineManager,
                         baseline
                 );
+
+                case "monitor" -> {
+
+                    Map<Path, String> baselineHashes =
+                            baselineManager.load(baseline);
+
+                    FileMonitor monitor =
+                            new FileMonitor(
+                                    scanner,
+                                    checker
+                            );
+
+                    monitor.monitor(
+                            directory,
+                            baselineHashes,
+                            5
+                    );
+                }
 
                 case "verify" -> {
 
@@ -149,7 +170,7 @@ public class Main {
 
         System.err.println(
                 "Usage: java -jar fileguard.jar " +
-                "<scan|verify> <directory> " +
+                "<scan|verify|monitor> <directory> " +
                 "[--baseline <file>] " +
                 "[--report <file>]"
         );
@@ -161,7 +182,7 @@ public class Main {
 
         System.out.println(
                 "Usage: java -jar fileguard.jar " +
-                "<scan|verify> <directory> " +
+                "<scan|verify|monitor> <directory> " +
                 "[--baseline <file>] " +
                 "[--report <file>]"
         );
@@ -176,6 +197,10 @@ public class Main {
 
         System.out.println(
                 "  verify  Check the directory against the baseline"
+        );
+
+        System.out.println(
+                "  monitor Monitor the directory continuously"
         );
 
         System.out.println();
@@ -200,6 +225,10 @@ public class Main {
 
         System.out.println(
                 "  java -jar fileguard.jar verify test-files"
+        );
+
+        System.out.println(
+                "  java -jar fileguard.jar monitor test-files"
         );
 
         System.out.println(
