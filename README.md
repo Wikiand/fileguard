@@ -259,6 +259,37 @@ FileGuard was built to explore practical cybersecurity concepts including:
 * Integrity status monitoring
 * Automated security testing
 
+🚧 Still in Development
+
+File Guard is currently under active development.
+
+The core file monitoring and integrity functionality is being developed and tested incrementally. Some features described in the roadmap are planned future improvements and are not yet implemented.
+
+Current development is focused on:
+
+* Core file and directory monitoring
+* File creation, modification, and deletion detection
+* SHA-256 integrity verification
+* Security event logging
+* Automated testing
+* Improving reliability and error handling
+
+🔮 Future Development
+
+Planned improvements include:
+
+* Real-time security alerts
+* Persistent event storage
+* REST API
+* Web dashboard
+* User authentication and authorization
+* Advanced threat detection
+* Docker deployment
+* Cloud integration
+* AI-assisted security event analysis
+
+This project is evolving. Features, architecture, and implementation details may change as development continues.
+
 ## Future Development
 
 The current CLI version provides the core integrity-monitoring engine.
@@ -275,10 +306,9 @@ Planned application capabilities include:
 * File change visualization
 * Monitoring history
 
-The goal is to evolve FileGuard from a command-line security tool into a practical desktop file integrity monitoring application.
 
 ## Author
 
 **Christine  Nyambura **
 
-Software Developer with a focus on Cybersecurity, Software Development, Digital Forensics, and AI.
+Software Developer with a focus on Cybersecurity and AI.
