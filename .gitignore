@@ -1,7 +1,13 @@
-
 target/
+
 .fileguard-baseline
+
 my-baseline.txt
+
+baseline.txt
+
 report.json
-tamper-report.jsonfileguard-monitor.log
+
+tamper-report.json
+
 fileguard-monitor.log
