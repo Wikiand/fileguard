@@ -30,6 +30,9 @@ public class FileGuardApp extends Application {
     private Label status;
     private Label securityEventLabel;
 
+    private Button startMonitoringButton;
+    private Button stopMonitoringButton;
+
     private Path selectedDirectory;
     private Map<Path, String> baseline;
 
@@ -175,13 +178,27 @@ public class FileGuardApp extends Application {
         Button selectFolderButton =
                 new Button("Select Folder");
 
-        Button startMonitoringButton =
+        startMonitoringButton =
                 new Button("Start Monitoring");
+
+        stopMonitoringButton =
+                new Button("Stop Monitoring");
 
         selectFolderButton.setPrefWidth(105);
         startMonitoringButton.setPrefWidth(105);
+        stopMonitoringButton.setPrefWidth(105);
+
+        stopMonitoringButton.setDisable(true);
 
         selectFolderButton.setOnAction(event -> {
+
+            if (monitoring) {
+                showWarning(
+                        "Monitoring is active",
+                        "Stop monitoring before selecting another folder."
+                );
+                return;
+            }
 
             DirectoryChooser chooser =
                     new DirectoryChooser();
@@ -281,6 +298,10 @@ public class FileGuardApp extends Application {
             status.setText(
                     "● MONITORING"
             );
+
+            startMonitoringButton.setDisable(true);
+            stopMonitoringButton.setDisable(false);
+            selectFolderButton.setDisable(true);
 
             FileMonitor fileMonitor =
                     new FileMonitor(
@@ -406,13 +427,18 @@ public class FileGuardApp extends Application {
 
                             } catch (FileGuardException e) {
 
-                                Platform.runLater(() ->
-                                        status.setText(
-                                                "⚠ MONITOR ERROR"
-                                        )
-                                );
+                                Platform.runLater(() -> {
 
-                                monitoring = false;
+                                    status.setText(
+                                            "⚠ MONITOR ERROR"
+                                    );
+
+                                    monitoring = false;
+
+                                    startMonitoringButton.setDisable(false);
+                                    stopMonitoringButton.setDisable(true);
+                                    selectFolderButton.setDisable(false);
+                                });
 
                             } catch (InterruptedException e) {
 
@@ -425,14 +451,23 @@ public class FileGuardApp extends Application {
                     });
 
             monitoringThread.setDaemon(true);
-
             monitoringThread.start();
+        });
+
+        stopMonitoringButton.setOnAction(event -> {
+
+            stopMonitoring();
+
+            status.setText(
+                    "✓ MONITORING STOPPED"
+            );
         });
 
         HBox buttons = new HBox(
                 8,
                 selectFolderButton,
-                startMonitoringButton
+                startMonitoringButton,
+                stopMonitoringButton
         );
 
         buttons.setAlignment(
@@ -487,6 +522,20 @@ public class FileGuardApp extends Application {
         stage.show();
     }
 
+    private void stopMonitoring() {
+
+        monitoring = false;
+
+        if (monitoringThread != null) {
+
+            monitoringThread.interrupt();
+            monitoringThread = null;
+        }
+
+        startMonitoringButton.setDisable(false);
+        stopMonitoringButton.setDisable(true);
+    }
+
     private void showError(
             String title,
             String message) {
@@ -522,11 +571,7 @@ public class FileGuardApp extends Application {
     @Override
     public void stop() {
 
-        monitoring = false;
-
-        if (monitoringThread != null) {
-            monitoringThread.interrupt();
-        }
+        stopMonitoring();
     }
 
     public static void main(String[] args) {
