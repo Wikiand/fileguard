@@ -13,9 +13,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -32,9 +34,11 @@ public class FileGuardApp extends Application {
 
     private Button startMonitoringButton;
     private Button stopMonitoringButton;
+    private Button saveBaselineButton;
 
     private Path selectedDirectory;
     private Map<Path, String> baseline;
+    private Path baselineFile;
 
     private volatile boolean monitoring = false;
     private Thread monitoringThread;
@@ -42,10 +46,14 @@ public class FileGuardApp extends Application {
     private final FileScanner scanner =
             new FileScanner(new FileHasher());
 
+    private final BaselineManager baselineManager =
+            new BaselineManager();
+
     @Override
     public void start(Stage stage) {
 
         Label title = new Label("FileGuard");
+
         title.setStyle(
                 "-fx-font-size: 16px; " +
                 "-fx-font-weight: bold;"
@@ -53,6 +61,7 @@ public class FileGuardApp extends Application {
 
         Label subtitle =
                 new Label("File Integrity Monitoring");
+
         subtitle.setStyle(
                 "-fx-font-size: 9px;"
         );
@@ -69,6 +78,7 @@ public class FileGuardApp extends Application {
 
         Label statusTitle =
                 new Label("INTEGRITY STATUS");
+
         statusTitle.setStyle(
                 "-fx-font-size: 8px; " +
                 "-fx-font-weight: bold;"
@@ -76,6 +86,7 @@ public class FileGuardApp extends Application {
 
         status =
                 new Label("✓ PROTECTED");
+
         status.setStyle(
                 "-fx-font-size: 12px; " +
                 "-fx-font-weight: bold;"
@@ -140,6 +151,7 @@ public class FileGuardApp extends Application {
 
         Label folderTitle =
                 new Label("Selected Folder");
+
         folderTitle.setStyle(
                 "-fx-font-size: 10px; " +
                 "-fx-font-weight: bold;"
@@ -147,6 +159,7 @@ public class FileGuardApp extends Application {
 
         selectedFolderLabel =
                 new Label("No folder selected");
+
         selectedFolderLabel.setStyle(
                 "-fx-font-size: 9px;"
         );
@@ -171,6 +184,7 @@ public class FileGuardApp extends Application {
 
         Label eventsTitle =
                 new Label("Recent Security Events");
+
         eventsTitle.setStyle(
                 "-fx-font-size: 10px; " +
                 "-fx-font-weight: bold;"
@@ -178,6 +192,7 @@ public class FileGuardApp extends Application {
 
         securityEventLabel =
                 new Label("No security events detected");
+
         securityEventLabel.setStyle(
                 "-fx-font-size: 9px;"
         );
@@ -203,6 +218,9 @@ public class FileGuardApp extends Application {
         Button selectFolderButton =
                 new Button("Select Folder");
 
+        saveBaselineButton =
+                new Button("Save Baseline");
+
         startMonitoringButton =
                 new Button("Start Monitoring");
 
@@ -210,9 +228,12 @@ public class FileGuardApp extends Application {
                 new Button("Stop Monitoring");
 
         selectFolderButton.setPrefWidth(105);
+        saveBaselineButton.setPrefWidth(105);
         startMonitoringButton.setPrefWidth(105);
         stopMonitoringButton.setPrefWidth(105);
 
+        saveBaselineButton.setDisable(true);
+        startMonitoringButton.setDisable(true);
         stopMonitoringButton.setDisable(true);
 
         selectFolderButton.setOnAction(event -> {
@@ -281,7 +302,17 @@ public class FileGuardApp extends Application {
                         "✓ BASELINE READY"
                 );
 
+                baselineFile = null;
+
+                saveBaselineButton.setDisable(false);
+                startMonitoringButton.setDisable(true);
+
             } catch (FileGuardException e) {
+
+                baseline = null;
+
+                saveBaselineButton.setDisable(true);
+                startMonitoringButton.setDisable(true);
 
                 status.setText(
                         "⚠ SCAN ERROR"
@@ -289,6 +320,82 @@ public class FileGuardApp extends Application {
 
                 showError(
                         "Could not scan folder",
+                        e.getMessage()
+                );
+            }
+        });
+
+        saveBaselineButton.setOnAction(event -> {
+
+            if (selectedDirectory == null
+                    || baseline == null) {
+
+                showWarning(
+                        "No baseline available",
+                        "Select a folder first."
+                );
+
+                return;
+            }
+
+            FileChooser chooser =
+                    new FileChooser();
+
+            chooser.setTitle(
+                    "Save FileGuard Baseline"
+            );
+
+            chooser.setInitialFileName(
+                    "baseline.txt"
+            );
+
+            chooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter(
+                            "Text Files",
+                            "*.txt"
+                    )
+            );
+
+            File selectedBaselineFile =
+                    chooser.showSaveDialog(stage);
+
+            if (selectedBaselineFile == null) {
+                return;
+            }
+
+            baselineFile =
+                    selectedBaselineFile.toPath();
+
+            try {
+
+                baselineManager.save(
+                        baseline,
+                        baselineFile
+                );
+
+                status.setText(
+                        "✓ BASELINE SAVED"
+                );
+
+                startMonitoringButton.setDisable(false);
+
+                securityEventLabel.setText(
+                        "Baseline saved:\n"
+                                + baselineFile
+                                        .toAbsolutePath()
+                                        .normalize()
+                );
+
+            } catch (IOException e) {
+
+                baselineFile = null;
+
+                status.setText(
+                        "⚠ SAVE ERROR"
+                );
+
+                showError(
+                        "Could not save baseline",
                         e.getMessage()
                 );
             }
@@ -310,7 +417,17 @@ public class FileGuardApp extends Application {
 
                 showWarning(
                         "No baseline available",
-                        "Select a folder first to create a baseline."
+                        "Select a folder and save a baseline first."
+                );
+
+                return;
+            }
+
+            if (baselineFile == null) {
+
+                showWarning(
+                        "Baseline not saved",
+                        "Save the baseline before starting monitoring."
                 );
 
                 return;
@@ -327,6 +444,7 @@ public class FileGuardApp extends Application {
             );
 
             startMonitoringButton.setDisable(true);
+            saveBaselineButton.setDisable(true);
             stopMonitoringButton.setDisable(false);
             selectFolderButton.setDisable(true);
 
@@ -463,6 +581,7 @@ public class FileGuardApp extends Application {
                                     monitoring = false;
 
                                     startMonitoringButton.setDisable(false);
+                                    saveBaselineButton.setDisable(false);
                                     stopMonitoringButton.setDisable(true);
                                     selectFolderButton.setDisable(false);
                                 });
@@ -493,6 +612,7 @@ public class FileGuardApp extends Application {
         HBox buttons = new HBox(
                 8,
                 selectFolderButton,
+                saveBaselineButton,
                 startMonitoringButton,
                 stopMonitoringButton
         );
@@ -537,14 +657,14 @@ public class FileGuardApp extends Application {
         root.setCenter(scrollPane);
 
         Scene scene =
-                new Scene(root, 420, 300);
+                new Scene(root, 500, 320);
 
         stage.setTitle("FileGuard");
 
         stage.setScene(scene);
 
-        stage.setMinWidth(380);
-        stage.setMinHeight(280);
+        stage.setMinWidth(450);
+        stage.setMinHeight(300);
 
         stage.show();
     }
@@ -560,6 +680,7 @@ public class FileGuardApp extends Application {
         }
 
         startMonitoringButton.setDisable(false);
+        saveBaselineButton.setDisable(false);
         stopMonitoringButton.setDisable(true);
     }
 
