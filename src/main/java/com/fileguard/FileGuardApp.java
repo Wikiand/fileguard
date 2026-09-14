@@ -46,15 +46,13 @@ public class FileGuardApp extends Application {
     public void start(Stage stage) {
 
         Label title = new Label("FileGuard");
-
         title.setStyle(
-                "-fx-font-size: 15px; " +
+                "-fx-font-size: 16px; " +
                 "-fx-font-weight: bold;"
         );
 
         Label subtitle =
                 new Label("File Integrity Monitoring");
-
         subtitle.setStyle(
                 "-fx-font-size: 9px;"
         );
@@ -66,12 +64,11 @@ public class FileGuardApp extends Application {
         );
 
         header.setPadding(
-                new Insets(6)
+                new Insets(7, 8, 5, 8)
         );
 
         Label statusTitle =
                 new Label("INTEGRITY STATUS");
-
         statusTitle.setStyle(
                 "-fx-font-size: 8px; " +
                 "-fx-font-weight: bold;"
@@ -79,9 +76,8 @@ public class FileGuardApp extends Application {
 
         status =
                 new Label("✓ PROTECTED");
-
         status.setStyle(
-                "-fx-font-size: 11px; " +
+                "-fx-font-size: 12px; " +
                 "-fx-font-weight: bold;"
         );
 
@@ -103,8 +99,19 @@ public class FileGuardApp extends Application {
         deletedLabel =
                 new Label("Deleted: 0");
 
+        for (Label label : List.of(
+                filesLabel,
+                modifiedLabel,
+                newLabel,
+                deletedLabel
+        )) {
+            label.setStyle(
+                    "-fx-font-size: 9px;"
+            );
+        }
+
         VBox statistics = new VBox(
-                1,
+                2,
                 filesLabel,
                 modifiedLabel,
                 newLabel,
@@ -112,18 +119,27 @@ public class FileGuardApp extends Application {
         );
 
         HBox overview = new HBox(
-                20,
+                30,
                 statusBox,
                 statistics
         );
 
+        overview.setAlignment(
+                Pos.CENTER_LEFT
+        );
+
         overview.setPadding(
-                new Insets(5)
+                new Insets(7)
+        );
+
+        overview.setStyle(
+                "-fx-border-color: #cccccc; " +
+                "-fx-border-radius: 4; " +
+                "-fx-background-radius: 4;"
         );
 
         Label folderTitle =
                 new Label("Selected Folder");
-
         folderTitle.setStyle(
                 "-fx-font-size: 10px; " +
                 "-fx-font-weight: bold;"
@@ -131,7 +147,6 @@ public class FileGuardApp extends Application {
 
         selectedFolderLabel =
                 new Label("No folder selected");
-
         selectedFolderLabel.setStyle(
                 "-fx-font-size: 9px;"
         );
@@ -145,12 +160,17 @@ public class FileGuardApp extends Application {
         );
 
         folderBox.setPadding(
-                new Insets(5)
+                new Insets(7)
+        );
+
+        folderBox.setStyle(
+                "-fx-border-color: #cccccc; " +
+                "-fx-border-radius: 4; " +
+                "-fx-background-radius: 4;"
         );
 
         Label eventsTitle =
                 new Label("Recent Security Events");
-
         eventsTitle.setStyle(
                 "-fx-font-size: 10px; " +
                 "-fx-font-weight: bold;"
@@ -158,7 +178,6 @@ public class FileGuardApp extends Application {
 
         securityEventLabel =
                 new Label("No security events detected");
-
         securityEventLabel.setStyle(
                 "-fx-font-size: 9px;"
         );
@@ -172,7 +191,13 @@ public class FileGuardApp extends Application {
         );
 
         eventsBox.setPadding(
-                new Insets(5)
+                new Insets(7)
+        );
+
+        eventsBox.setStyle(
+                "-fx-border-color: #cccccc; " +
+                "-fx-border-radius: 4; " +
+                "-fx-background-radius: 4;"
         );
 
         Button selectFolderButton =
@@ -193,10 +218,12 @@ public class FileGuardApp extends Application {
         selectFolderButton.setOnAction(event -> {
 
             if (monitoring) {
+
                 showWarning(
                         "Monitoring is active",
                         "Stop monitoring before selecting another folder."
                 );
+
                 return;
             }
 
@@ -475,11 +502,11 @@ public class FileGuardApp extends Application {
         );
 
         buttons.setPadding(
-                new Insets(5)
+                new Insets(5, 0, 2, 0)
         );
 
         VBox content = new VBox(
-                2,
+                6,
                 overview,
                 folderBox,
                 eventsBox,
@@ -487,7 +514,7 @@ public class FileGuardApp extends Application {
         );
 
         content.setPadding(
-                new Insets(3, 6, 6, 6)
+                new Insets(4, 7, 7, 7)
         );
 
         ScrollPane scrollPane =
