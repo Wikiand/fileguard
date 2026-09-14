@@ -290,23 +290,6 @@ Planned improvements include:
 
 This project is evolving. Features, architecture, and implementation details may change as development continues.
 
-## Future Development
-
-The current CLI version provides the core integrity-monitoring engine.
-
-The next development phase will transform FileGuard into a **desktop cybersecurity application** with a graphical interface while keeping the existing integrity-monitoring engine underneath.
-
-Planned application capabilities include:
-
-* Graphical dashboard
-* Folder selection
-* Start/stop monitoring controls
-* Live integrity status
-* Security event display
-* File change visualization
-* Monitoring history
-
-
 ## Author
 
 **Christine  Nyambura **
