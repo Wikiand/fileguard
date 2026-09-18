@@ -43,6 +43,7 @@ public class FileGuardApp extends Application {
     private Button startMonitoringButton;
     private Button stopMonitoringButton;
     private Button resetBaselineButton;
+    private Button generateReportButton;
 
     private VBox securityEventsBox;
 
@@ -58,11 +59,17 @@ public class FileGuardApp extends Application {
     private final BaselineManager baselineManager =
             new BaselineManager();
 
+    private final JsonReportWriter reportWriter =
+            new JsonReportWriter();
+
     private final DateTimeFormatter eventTimeFormat =
             DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private static final String BASELINE_FILE_NAME =
             ".fileguard-baseline.txt";
+
+    private static final String REPORT_FILE_NAME =
+            "fileguard-report.json";
 
     @Override
     public void start(Stage stage) {
@@ -296,6 +303,9 @@ public class FileGuardApp extends Application {
         resetBaselineButton =
                 new Button("Reset Baseline");
 
+        generateReportButton =
+                new Button("Generate Report");
+
         startMonitoringButton =
                 new Button("Start Monitoring");
 
@@ -304,10 +314,12 @@ public class FileGuardApp extends Application {
 
         selectFolderButton.setPrefWidth(105);
         resetBaselineButton.setPrefWidth(105);
+        generateReportButton.setPrefWidth(105);
         startMonitoringButton.setPrefWidth(105);
         stopMonitoringButton.setPrefWidth(105);
 
         resetBaselineButton.setDisable(true);
+        generateReportButton.setDisable(true);
         stopMonitoringButton.setDisable(true);
 
         selectFolderButton.setOnAction(event -> {
@@ -386,6 +398,7 @@ public class FileGuardApp extends Application {
                     );
 
                     resetBaselineButton.setDisable(false);
+                    generateReportButton.setDisable(false);
 
                     clearSecurityEvents();
 
@@ -431,6 +444,7 @@ public class FileGuardApp extends Application {
                     );
 
                     resetBaselineButton.setDisable(false);
+                    generateReportButton.setDisable(false);
 
                     clearSecurityEvents();
 
@@ -444,6 +458,7 @@ public class FileGuardApp extends Application {
                 baseline = null;
 
                 resetBaselineButton.setDisable(true);
+                generateReportButton.setDisable(true);
 
                 baselineStatusLabel.setText(
                         "⚠ Baseline unavailable"
@@ -467,6 +482,7 @@ public class FileGuardApp extends Application {
                 baseline = null;
 
                 resetBaselineButton.setDisable(true);
+                generateReportButton.setDisable(true);
 
                 baselineStatusLabel.setText(
                         "⚠ Baseline unavailable"
@@ -574,6 +590,8 @@ public class FileGuardApp extends Application {
                                     "Files: " + baseline.size()
                             );
 
+                            generateReportButton.setDisable(false);
+
                             clearSecurityEvents();
 
                             status.setText(
@@ -603,6 +621,122 @@ public class FileGuardApp extends Application {
                             );
                         }
                     });
+        });
+
+        generateReportButton.setOnAction(event -> {
+
+            if (monitoring) {
+
+                showWarning(
+                        "Monitoring is active",
+                        "Stop monitoring before generating a report."
+                );
+
+                return;
+            }
+
+            if (selectedDirectory == null) {
+
+                showWarning(
+                        "No folder selected",
+                        "Select a folder before generating a report."
+                );
+
+                return;
+            }
+
+            if (baseline == null) {
+
+                showWarning(
+                        "No baseline available",
+                        "Select a folder first to create or load a baseline."
+                );
+
+                return;
+            }
+
+            try {
+
+                FileMonitor fileMonitor =
+                        new FileMonitor(
+                                scanner,
+                                new IntegrityChecker()
+                        );
+
+                VerificationReport report =
+                        fileMonitor.verify(
+                                selectedDirectory,
+                                baseline
+                        );
+
+                Path reportFile =
+                        selectedDirectory.resolve(
+                                REPORT_FILE_NAME
+                        );
+
+                reportWriter.write(
+                        report,
+                        reportFile
+                );
+
+                modifiedLabel.setText(
+                        "Modified: "
+                                + report.modified()
+                );
+
+                newLabel.setText(
+                        "New: "
+                                + report.newFiles()
+                );
+
+                deletedLabel.setText(
+                        "Deleted: "
+                                + report.deleted()
+                );
+
+                if (report.compromised()) {
+
+                    status.setText(
+                            "⚠ COMPROMISED"
+                    );
+
+                } else {
+
+                    status.setText(
+                            "✓ PROTECTED"
+                    );
+                }
+
+                showInfo(
+                        "Report generated",
+                        "JSON integrity report saved to:\n\n"
+                                + reportFile
+                                        .toAbsolutePath()
+                                        .normalize()
+                );
+
+            } catch (FileGuardException e) {
+
+                status.setText(
+                        "⚠ REPORT ERROR"
+                );
+
+                showError(
+                        "Could not generate report",
+                        e.getMessage()
+                );
+
+            } catch (IOException e) {
+
+                status.setText(
+                        "⚠ REPORT SAVE ERROR"
+                );
+
+                showError(
+                        "Could not save report",
+                        e.getMessage()
+                );
+            }
         });
 
         startMonitoringButton.setOnAction(event -> {
@@ -641,6 +775,7 @@ public class FileGuardApp extends Application {
             stopMonitoringButton.setDisable(false);
             selectFolderButton.setDisable(true);
             resetBaselineButton.setDisable(true);
+            generateReportButton.setDisable(true);
 
             FileMonitor fileMonitor =
                     new FileMonitor(
@@ -803,6 +938,11 @@ public class FileGuardApp extends Application {
                                             .setDisable(
                                                     baseline == null
                                             );
+
+                                    generateReportButton
+                                            .setDisable(
+                                                    baseline == null
+                                            );
                                 });
 
                             } catch (InterruptedException e) {
@@ -834,6 +974,7 @@ public class FileGuardApp extends Application {
                         8,
                         selectFolderButton,
                         resetBaselineButton,
+                        generateReportButton,
                         startMonitoringButton,
                         stopMonitoringButton
                 );
@@ -905,61 +1046,61 @@ public class FileGuardApp extends Application {
                 LocalTime.now()
                         .format(eventTimeFormat);
 
-        String fileName =
-                change.path()
-                        .getFileName()
-                        .toString();
-
         Label eventLabel =
                 new Label(
                         timestamp
-                                + "  ⚠ "
+                                + " | "
                                 + change.type()
-                                + "  "
-                                + fileName
+                                + " | "
+                                + change.path()
                 );
-
-        eventLabel.setStyle(
-                "-fx-font-size: 9px;"
-        );
 
         eventLabel.setWrapText(true);
 
-        securityEventsBox.getChildren()
+        eventLabel.setStyle(
+                "-fx-font-size: 8px;"
+        );
+
+        securityEventsBox
+                .getChildren()
                 .add(0, eventLabel);
     }
 
     private void addEmptyEventsMessage() {
 
-        Label emptyEventsLabel =
+        Label emptyLabel =
                 new Label(
                         "No security events detected"
                 );
 
-        emptyEventsLabel.setStyle(
-                "-fx-font-size: 9px;"
+        emptyLabel.setStyle(
+                "-fx-font-size: 8px; " +
+                "-fx-text-fill: #777777;"
         );
 
-        securityEventsBox.getChildren()
-                .add(emptyEventsLabel);
+        emptyLabel.setId(
+                "empty-events-message"
+        );
+
+        securityEventsBox
+                .getChildren()
+                .add(emptyLabel);
     }
 
     private void removeEmptyEventsMessage() {
 
-        securityEventsBox.getChildren()
+        securityEventsBox
+                .getChildren()
                 .removeIf(node ->
-                        node instanceof Label
-                                && ((Label) node)
-                                .getText()
-                                .equals(
-                                        "No security events detected"
-                                )
+                        "empty-events-message"
+                                .equals(node.getId())
                 );
     }
 
     private void clearSecurityEvents() {
 
-        securityEventsBox.getChildren()
+        securityEventsBox
+                .getChildren()
                 .clear();
 
         addEmptyEventsMessage();
@@ -972,31 +1113,16 @@ public class FileGuardApp extends Application {
         if (monitoringThread != null) {
 
             monitoringThread.interrupt();
+
             monitoringThread = null;
         }
 
         startMonitoringButton.setDisable(false);
         stopMonitoringButton.setDisable(true);
-        resetBaselineButton.setDisable(
-                selectedDirectory == null
-                        || baseline == null
+
+        generateReportButton.setDisable(
+                baseline == null
         );
-    }
-
-    private void showError(
-            String title,
-            String message) {
-
-        Alert alert =
-                new Alert(
-                        Alert.AlertType.ERROR
-                );
-
-        alert.setTitle("FileGuard");
-        alert.setHeaderText(title);
-        alert.setContentText(message);
-
-        alert.showAndWait();
     }
 
     private void showWarning(
@@ -1015,10 +1141,36 @@ public class FileGuardApp extends Application {
         alert.showAndWait();
     }
 
-    @Override
-    public void stop() {
+    private void showError(
+            String title,
+            String message) {
 
-        stopMonitoring();
+        Alert alert =
+                new Alert(
+                        Alert.AlertType.ERROR
+                );
+
+        alert.setTitle("FileGuard");
+        alert.setHeaderText(title);
+        alert.setContentText(message);
+
+        alert.showAndWait();
+    }
+
+    private void showInfo(
+            String title,
+            String message) {
+
+        Alert alert =
+                new Alert(
+                        Alert.AlertType.INFORMATION
+                );
+
+        alert.setTitle("FileGuard");
+        alert.setHeaderText(title);
+        alert.setContentText(message);
+
+        alert.showAndWait();
     }
 
     public static void main(String[] args) {

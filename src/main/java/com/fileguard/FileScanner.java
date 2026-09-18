@@ -9,6 +9,12 @@ import java.util.stream.Stream;
 
 public class FileScanner {
 
+    private static final String BASELINE_FILE_NAME =
+            ".fileguard-baseline.txt";
+
+    private static final String REPORT_FILE_NAME =
+            "fileguard-report.json";
+
     private final FileHasher hasher;
 
     public FileScanner(FileHasher hasher) {
@@ -27,9 +33,13 @@ public class FileScanner {
 
         try (Stream<Path> paths = Files.walk(directory)) {
             paths.filter(Files::isRegularFile)
+                    .filter(path -> !isFileGuardGeneratedFile(path))
                     .forEach(path -> {
                         try {
-                            files.put(path.toAbsolutePath().normalize(), hasher.hash(path));
+                            files.put(
+                                    path.toAbsolutePath().normalize(),
+                                    hasher.hash(path)
+                            );
                         } catch (IOException e) {
                             throw new FileScanException(path, e);
                         }
@@ -52,6 +62,13 @@ public class FileScanner {
         }
 
         return files;
+    }
+
+    private boolean isFileGuardGeneratedFile(Path path) {
+        String fileName = path.getFileName().toString();
+
+        return fileName.equals(BASELINE_FILE_NAME)
+                || fileName.equals(REPORT_FILE_NAME);
     }
 
     private static class FileScanException extends RuntimeException {

@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FileScannerTest {
 
@@ -31,22 +33,66 @@ class FileScannerTest {
         Map<Path, String> result = scanner.scan(directory);
 
         assertEquals(2, result.size());
-        assertEquals(
-                true,
+        assertTrue(
                 result.containsKey(
                         directory.resolve("first.txt")
                                 .toAbsolutePath()
                                 .normalize()
                 )
         );
-        assertEquals(
-                true,
+        assertTrue(
                 result.containsKey(
                         directory.resolve("second.txt")
                                 .toAbsolutePath()
                                 .normalize()
                 )
         );
+    }
+
+    @Test
+    void scanIgnoresFileGuardGeneratedFiles() throws Exception {
+        Path directory = Files.createTempDirectory("fileguard-test");
+
+        Files.writeString(
+                directory.resolve("normal.txt"),
+                "normal"
+        );
+
+        Files.writeString(
+                directory.resolve(".fileguard-baseline.txt"),
+                "baseline"
+        );
+
+        Files.writeString(
+                directory.resolve("fileguard-report.json"),
+                "{}"
+        );
+
+        FileHasher hasher = new FileHasher();
+        FileScanner scanner = new FileScanner(hasher);
+
+        Map<Path, String> result = scanner.scan(directory);
+
+        assertEquals(1, result.size());
+
+        Path normalFile =
+                directory.resolve("normal.txt")
+                        .toAbsolutePath()
+                        .normalize();
+
+        Path baselineFile =
+                directory.resolve(".fileguard-baseline.txt")
+                        .toAbsolutePath()
+                        .normalize();
+
+        Path reportFile =
+                directory.resolve("fileguard-report.json")
+                        .toAbsolutePath()
+                        .normalize();
+
+        assertTrue(result.containsKey(normalFile));
+        assertFalse(result.containsKey(baselineFile));
+        assertFalse(result.containsKey(reportFile));
     }
 
     @Test
