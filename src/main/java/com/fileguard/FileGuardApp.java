@@ -17,8 +17,12 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class FileGuardApp extends Application {
 
@@ -28,10 +32,11 @@ public class FileGuardApp extends Application {
     private Label newLabel;
     private Label deletedLabel;
     private Label status;
-    private Label securityEventLabel;
 
     private Button startMonitoringButton;
     private Button stopMonitoringButton;
+
+    private VBox securityEventsBox;
 
     private Path selectedDirectory;
     private Map<Path, String> baseline;
@@ -42,10 +47,15 @@ public class FileGuardApp extends Application {
     private final FileScanner scanner =
             new FileScanner(new FileHasher());
 
+    private final DateTimeFormatter eventTimeFormat =
+            DateTimeFormatter.ofPattern("HH:mm:ss");
+
     @Override
     public void start(Stage stage) {
 
-        Label title = new Label("FileGuard");
+        Label title =
+                new Label("FileGuard");
+
         title.setStyle(
                 "-fx-font-size: 16px; " +
                 "-fx-font-weight: bold;"
@@ -53,15 +63,17 @@ public class FileGuardApp extends Application {
 
         Label subtitle =
                 new Label("File Integrity Monitoring");
+
         subtitle.setStyle(
                 "-fx-font-size: 9px;"
         );
 
-        VBox header = new VBox(
-                1,
-                title,
-                subtitle
-        );
+        VBox header =
+                new VBox(
+                        1,
+                        title,
+                        subtitle
+                );
 
         header.setPadding(
                 new Insets(7, 8, 5, 8)
@@ -69,6 +81,7 @@ public class FileGuardApp extends Application {
 
         Label statusTitle =
                 new Label("INTEGRITY STATUS");
+
         statusTitle.setStyle(
                 "-fx-font-size: 8px; " +
                 "-fx-font-weight: bold;"
@@ -76,16 +89,18 @@ public class FileGuardApp extends Application {
 
         status =
                 new Label("✓ PROTECTED");
+
         status.setStyle(
                 "-fx-font-size: 12px; " +
                 "-fx-font-weight: bold;"
         );
 
-        VBox statusBox = new VBox(
-                2,
-                statusTitle,
-                status
-        );
+        VBox statusBox =
+                new VBox(
+                        2,
+                        statusTitle,
+                        status
+                );
 
         filesLabel =
                 new Label("Files monitored: 0");
@@ -110,19 +125,21 @@ public class FileGuardApp extends Application {
             );
         }
 
-        VBox statistics = new VBox(
-                2,
-                filesLabel,
-                modifiedLabel,
-                newLabel,
-                deletedLabel
-        );
+        VBox statistics =
+                new VBox(
+                        2,
+                        filesLabel,
+                        modifiedLabel,
+                        newLabel,
+                        deletedLabel
+                );
 
-        HBox overview = new HBox(
-                30,
-                statusBox,
-                statistics
-        );
+        HBox overview =
+                new HBox(
+                        30,
+                        statusBox,
+                        statistics
+                );
 
         overview.setAlignment(
                 Pos.CENTER_LEFT
@@ -140,6 +157,7 @@ public class FileGuardApp extends Application {
 
         Label folderTitle =
                 new Label("Selected Folder");
+
         folderTitle.setStyle(
                 "-fx-font-size: 10px; " +
                 "-fx-font-weight: bold;"
@@ -147,17 +165,19 @@ public class FileGuardApp extends Application {
 
         selectedFolderLabel =
                 new Label("No folder selected");
+
         selectedFolderLabel.setStyle(
                 "-fx-font-size: 9px;"
         );
 
         selectedFolderLabel.setWrapText(true);
 
-        VBox folderBox = new VBox(
-                3,
-                folderTitle,
-                selectedFolderLabel
-        );
+        VBox folderBox =
+                new VBox(
+                        3,
+                        folderTitle,
+                        selectedFolderLabel
+                );
 
         folderBox.setPadding(
                 new Insets(7)
@@ -171,24 +191,40 @@ public class FileGuardApp extends Application {
 
         Label eventsTitle =
                 new Label("Recent Security Events");
+
         eventsTitle.setStyle(
                 "-fx-font-size: 10px; " +
                 "-fx-font-weight: bold;"
         );
 
-        securityEventLabel =
-                new Label("No security events detected");
-        securityEventLabel.setStyle(
-                "-fx-font-size: 9px;"
+        securityEventsBox =
+                new VBox(3);
+
+        addEmptyEventsMessage();
+
+        ScrollPane eventsScrollPane =
+                new ScrollPane(
+                        securityEventsBox
+                );
+
+        eventsScrollPane.setFitToWidth(true);
+
+        eventsScrollPane.setPrefHeight(90);
+
+        eventsScrollPane.setHbarPolicy(
+                ScrollPane.ScrollBarPolicy.NEVER
         );
 
-        securityEventLabel.setWrapText(true);
-
-        VBox eventsBox = new VBox(
-                3,
-                eventsTitle,
-                securityEventLabel
+        eventsScrollPane.setVbarPolicy(
+                ScrollPane.ScrollBarPolicy.AS_NEEDED
         );
+
+        VBox eventsBox =
+                new VBox(
+                        3,
+                        eventsTitle,
+                        eventsScrollPane
+                );
 
         eventsBox.setPadding(
                 new Insets(7)
@@ -273,9 +309,7 @@ public class FileGuardApp extends Application {
                         "Deleted: 0"
                 );
 
-                securityEventLabel.setText(
-                        "No security events detected"
-                );
+                clearSecurityEvents();
 
                 status.setText(
                         "✓ BASELINE READY"
@@ -339,6 +373,9 @@ public class FileGuardApp extends Application {
             monitoringThread =
                     new Thread(() -> {
 
+                        Set<String> previouslyReported =
+                                new HashSet<>();
+
                         while (monitoring) {
 
                             try {
@@ -353,36 +390,55 @@ public class FileGuardApp extends Application {
                                 int newFiles = 0;
                                 int deleted = 0;
 
-                                FileChange latestChange = null;
+                                Set<String> currentChanges =
+                                        new HashSet<>();
+
+                                List<FileChange> newEvents =
+                                        new java.util.ArrayList<>();
 
                                 for (FileChange change : changes) {
+
+                                    if (change.type()
+                                            == ChangeType.UNCHANGED) {
+                                        continue;
+                                    }
+
+                                    String eventKey =
+                                            change.type()
+                                                    + ":"
+                                                    + change.path();
+
+                                    currentChanges.add(
+                                            eventKey
+                                    );
 
                                     switch (change.type()) {
 
                                         case MODIFIED:
                                             modified++;
-                                            latestChange = change;
                                             break;
 
                                         case NEW:
                                             newFiles++;
-                                            latestChange = change;
                                             break;
 
                                         case DELETED:
                                             deleted++;
-                                            latestChange = change;
                                             break;
 
                                         case UNCHANGED:
                                             break;
                                     }
+
+                                    if (!previouslyReported
+                                            .contains(eventKey)) {
+
+                                        newEvents.add(change);
+                                    }
                                 }
 
                                 boolean compromised =
-                                        modified > 0
-                                                || newFiles > 0
-                                                || deleted > 0;
+                                        !currentChanges.isEmpty();
 
                                 final int modifiedCount =
                                         modified;
@@ -395,9 +451,6 @@ public class FileGuardApp extends Application {
 
                                 final boolean integrityCompromised =
                                         compromised;
-
-                                final FileChange detectedChange =
-                                        latestChange;
 
                                 Platform.runLater(() -> {
 
@@ -422,33 +475,30 @@ public class FileGuardApp extends Application {
                                                 "⚠ COMPROMISED"
                                         );
 
-                                        if (detectedChange != null) {
-
-                                            String fileName =
-                                                    detectedChange
-                                                            .path()
-                                                            .getFileName()
-                                                            .toString();
-
-                                            securityEventLabel.setText(
-                                                    "⚠ "
-                                                            + detectedChange.type()
-                                                            + "\n"
-                                                            + fileName
-                                            );
-                                        }
-
                                     } else {
 
                                         status.setText(
                                                 "✓ PROTECTED"
                                         );
-
-                                        securityEventLabel.setText(
-                                                "No security events detected"
-                                        );
                                     }
                                 });
+
+                                if (!newEvents.isEmpty()) {
+
+                                    Platform.runLater(() -> {
+
+                                        for (FileChange change :
+                                                newEvents) {
+
+                                            addSecurityEvent(
+                                                    change
+                                            );
+                                        }
+                                    });
+                                }
+
+                                previouslyReported =
+                                        currentChanges;
 
                                 Thread.sleep(5000);
 
@@ -462,9 +512,14 @@ public class FileGuardApp extends Application {
 
                                     monitoring = false;
 
-                                    startMonitoringButton.setDisable(false);
-                                    stopMonitoringButton.setDisable(true);
-                                    selectFolderButton.setDisable(false);
+                                    startMonitoringButton
+                                            .setDisable(false);
+
+                                    stopMonitoringButton
+                                            .setDisable(true);
+
+                                    selectFolderButton
+                                            .setDisable(false);
                                 });
 
                             } catch (InterruptedException e) {
@@ -478,6 +533,7 @@ public class FileGuardApp extends Application {
                     });
 
             monitoringThread.setDaemon(true);
+
             monitoringThread.start();
         });
 
@@ -490,12 +546,13 @@ public class FileGuardApp extends Application {
             );
         });
 
-        HBox buttons = new HBox(
-                8,
-                selectFolderButton,
-                startMonitoringButton,
-                stopMonitoringButton
-        );
+        HBox buttons =
+                new HBox(
+                        8,
+                        selectFolderButton,
+                        startMonitoringButton,
+                        stopMonitoringButton
+                );
 
         buttons.setAlignment(
                 Pos.CENTER
@@ -505,13 +562,14 @@ public class FileGuardApp extends Application {
                 new Insets(5, 0, 2, 0)
         );
 
-        VBox content = new VBox(
-                6,
-                overview,
-                folderBox,
-                eventsBox,
-                buttons
-        );
+        VBox content =
+                new VBox(
+                        6,
+                        overview,
+                        folderBox,
+                        eventsBox,
+                        buttons
+                );
 
         content.setPadding(
                 new Insets(4, 7, 7, 7)
@@ -547,6 +605,79 @@ public class FileGuardApp extends Application {
         stage.setMinHeight(280);
 
         stage.show();
+    }
+
+    private void addSecurityEvent(
+            FileChange change) {
+
+        if (securityEventsBox == null) {
+            return;
+        }
+
+        removeEmptyEventsMessage();
+
+        String timestamp =
+                LocalTime.now()
+                        .format(eventTimeFormat);
+
+        String fileName =
+                change.path()
+                        .getFileName()
+                        .toString();
+
+        Label eventLabel =
+                new Label(
+                        timestamp
+                                + "  ⚠ "
+                                + change.type()
+                                + "  "
+                                + fileName
+                );
+
+        eventLabel.setStyle(
+                "-fx-font-size: 9px;"
+        );
+
+        eventLabel.setWrapText(true);
+
+        securityEventsBox.getChildren()
+                .add(0, eventLabel);
+    }
+
+    private void addEmptyEventsMessage() {
+
+        Label emptyEventsLabel =
+                new Label(
+                        "No security events detected"
+                );
+
+        emptyEventsLabel.setStyle(
+                "-fx-font-size: 9px;"
+        );
+
+        securityEventsBox.getChildren()
+                .add(emptyEventsLabel);
+    }
+
+    private void removeEmptyEventsMessage() {
+
+        securityEventsBox.getChildren()
+                .removeIf(node ->
+                        node instanceof Label
+                                && ((Label) node)
+                                .getText()
+                                .equals(
+                                        "No security events detected"
+                                )
+                );
+    }
+
+    private void clearSecurityEvents() {
+
+        securityEventsBox.getChildren()
+                .clear();
+
+        addEmptyEventsMessage();
     }
 
     private void stopMonitoring() {
