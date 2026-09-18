@@ -1,6 +1,6 @@
 target/
 
-.fileguard-baseline
+.fileguard-baseline.txt
 
 my-baseline.txt
 
