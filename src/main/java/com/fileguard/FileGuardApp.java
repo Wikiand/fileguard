@@ -17,6 +17,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +34,9 @@ public class FileGuardApp extends Application {
     private Label newLabel;
     private Label deletedLabel;
     private Label status;
+
+    private Label baselineStatusLabel;
+    private Label baselineFilesLabel;
 
     private Button startMonitoringButton;
     private Button stopMonitoringButton;
@@ -157,6 +161,46 @@ public class FileGuardApp extends Application {
         );
 
         overview.setStyle(
+                "-fx-border-color: #cccccc; " +
+                "-fx-border-radius: 4; " +
+                "-fx-background-radius: 4;"
+        );
+
+        Label baselineTitle =
+                new Label("Baseline");
+
+        baselineTitle.setStyle(
+                "-fx-font-size: 10px; " +
+                "-fx-font-weight: bold;"
+        );
+
+        baselineStatusLabel =
+                new Label("No baseline loaded");
+
+        baselineStatusLabel.setStyle(
+                "-fx-font-size: 9px;"
+        );
+
+        baselineFilesLabel =
+                new Label("Files: 0");
+
+        baselineFilesLabel.setStyle(
+                "-fx-font-size: 9px;"
+        );
+
+        VBox baselineBox =
+                new VBox(
+                        3,
+                        baselineTitle,
+                        baselineStatusLabel,
+                        baselineFilesLabel
+                );
+
+        baselineBox.setPadding(
+                new Insets(7)
+        );
+
+        baselineBox.setStyle(
                 "-fx-border-color: #cccccc; " +
                 "-fx-border-radius: 4; " +
                 "-fx-background-radius: 4;"
@@ -301,8 +345,7 @@ public class FileGuardApp extends Application {
 
             try {
 
-                if (java.nio.file.Files.exists(
-                        baselineFile)) {
+                if (Files.exists(baselineFile)) {
 
                     baseline =
                             baselineManager.load(
@@ -324,6 +367,14 @@ public class FileGuardApp extends Application {
 
                     deletedLabel.setText(
                             "Deleted: 0"
+                    );
+
+                    baselineStatusLabel.setText(
+                            "✓ Persistent baseline loaded"
+                    );
+
+                    baselineFilesLabel.setText(
+                            "Files: " + baseline.size()
                     );
 
                     clearSecurityEvents();
@@ -361,6 +412,14 @@ public class FileGuardApp extends Application {
                             "Deleted: 0"
                     );
 
+                    baselineStatusLabel.setText(
+                            "✓ Persistent baseline created"
+                    );
+
+                    baselineFilesLabel.setText(
+                            "Files: " + baseline.size()
+                    );
+
                     clearSecurityEvents();
 
                     status.setText(
@@ -371,6 +430,14 @@ public class FileGuardApp extends Application {
             } catch (FileGuardException e) {
 
                 baseline = null;
+
+                baselineStatusLabel.setText(
+                        "⚠ Baseline unavailable"
+                );
+
+                baselineFilesLabel.setText(
+                        "Files: 0"
+                );
 
                 status.setText(
                         "⚠ SCAN ERROR"
@@ -384,6 +451,14 @@ public class FileGuardApp extends Application {
             } catch (IOException e) {
 
                 baseline = null;
+
+                baselineStatusLabel.setText(
+                        "⚠ Baseline unavailable"
+                );
+
+                baselineFilesLabel.setText(
+                        "Files: 0"
+                );
 
                 status.setText(
                         "⚠ BASELINE ERROR"
@@ -634,6 +709,7 @@ public class FileGuardApp extends Application {
                 new VBox(
                         6,
                         overview,
+                        baselineBox,
                         folderBox,
                         eventsBox,
                         buttons
@@ -663,14 +739,14 @@ public class FileGuardApp extends Application {
         root.setCenter(scrollPane);
 
         Scene scene =
-                new Scene(root, 420, 300);
+                new Scene(root, 420, 330);
 
         stage.setTitle("FileGuard");
 
         stage.setScene(scene);
 
         stage.setMinWidth(380);
-        stage.setMinHeight(280);
+        stage.setMinHeight(300);
 
         stage.show();
     }
