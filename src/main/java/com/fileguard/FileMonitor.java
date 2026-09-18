@@ -1,4 +1,3 @@
-
 package com.fileguard;
 
 import java.io.IOException;
@@ -42,6 +41,59 @@ public class FileMonitor {
         return checker.compare(
                 baseline,
                 current
+        );
+    }
+
+    public VerificationReport verify(
+            Path directory,
+            Map<Path, String> baseline)
+            throws FileGuardException {
+
+        List<FileChange> changes =
+                check(
+                        directory,
+                        baseline
+                );
+
+        int unchanged = 0;
+        int modified = 0;
+        int newFiles = 0;
+        int deleted = 0;
+
+        for (FileChange change : changes) {
+
+            switch (change.type()) {
+
+                case UNCHANGED:
+                    unchanged++;
+                    break;
+
+                case MODIFIED:
+                    modified++;
+                    break;
+
+                case NEW:
+                    newFiles++;
+                    break;
+
+                case DELETED:
+                    deleted++;
+                    break;
+            }
+        }
+
+        boolean compromised =
+                modified > 0
+                        || newFiles > 0
+                        || deleted > 0;
+
+        return new VerificationReport(
+                unchanged,
+                modified,
+                newFiles,
+                deleted,
+                compromised,
+                changes
         );
     }
 
@@ -206,4 +258,3 @@ public class FileMonitor {
         }
     }
 }
-

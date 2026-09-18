@@ -1,5 +1,6 @@
 package com.fileguard;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -7,49 +8,57 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FileMonitorTest {
 
-    @Test
-    void shouldDetectModifiedFile() throws Exception {
+    private Path tempDirectory;
+    private FileScanner scanner;
+    private FileMonitor monitor;
 
-        Path directory =
-                Files.createTempDirectory("fileguard-monitor");
+    @BeforeEach
+    void setUp() throws Exception {
 
-        Path file =
-                directory.resolve("config.txt");
+        tempDirectory =
+                Files.createTempDirectory("fileguard-test");
 
-        Files.writeString(
-                file,
-                "original content"
+        scanner = new FileScanner(
+                new FileHasher()
         );
-
-        FileHasher hasher =
-                new FileHasher();
-
-        FileScanner scanner =
-                new FileScanner(hasher);
 
         IntegrityChecker checker =
                 new IntegrityChecker();
 
-        FileMonitor monitor =
+        monitor =
                 new FileMonitor(
                         scanner,
                         checker
                 );
+    }
 
-        Map<Path, String> baseline =
-                scanner.scan(directory);
+    @Test
+    void shouldDetectModifiedFile()
+            throws Exception {
+
+        Path file =
+                tempDirectory.resolve("test.txt");
 
         Files.writeString(
                 file,
-                "modified content"
+                "original"
+        );
+
+        Map<Path, String> baseline =
+                scanner.scan(tempDirectory);
+
+        Files.writeString(
+                file,
+                "modified"
         );
 
         var changes =
                 monitor.check(
-                        directory,
+                        tempDirectory,
                         baseline
                 );
 
@@ -64,53 +73,33 @@ class FileMonitorTest {
     }
 
     @Test
-    void shouldDetectRestoredFileAsUnchanged() throws Exception {
-
-        Path directory =
-                Files.createTempDirectory("fileguard-monitor");
+    void shouldDetectRestoredFileAsUnchanged()
+            throws Exception {
 
         Path file =
-                directory.resolve("config.txt");
-
-        String originalContent =
-                "original content";
+                tempDirectory.resolve("test.txt");
 
         Files.writeString(
                 file,
-                originalContent
+                "original"
         );
-
-        FileHasher hasher =
-                new FileHasher();
-
-        FileScanner scanner =
-                new FileScanner(hasher);
-
-        IntegrityChecker checker =
-                new IntegrityChecker();
-
-        FileMonitor monitor =
-                new FileMonitor(
-                        scanner,
-                        checker
-                );
 
         Map<Path, String> baseline =
-                scanner.scan(directory);
+                scanner.scan(tempDirectory);
 
         Files.writeString(
                 file,
-                "modified content"
+                "modified"
         );
 
         Files.writeString(
                 file,
-                originalContent
+                "original"
         );
 
         var changes =
                 monitor.check(
-                        directory,
+                        tempDirectory,
                         baseline
                 );
 
@@ -125,48 +114,31 @@ class FileMonitorTest {
     }
 
     @Test
-    void shouldDetectNewFile() throws Exception {
+    void shouldDetectNewFile()
+            throws Exception {
 
-        Path directory =
-                Files.createTempDirectory("fileguard-monitor");
-
-        Path originalFile =
-                directory.resolve("config.txt");
+        Path file =
+                tempDirectory.resolve("test.txt");
 
         Files.writeString(
-                originalFile,
-                "original content"
+                file,
+                "original"
         );
 
-        FileHasher hasher =
-                new FileHasher();
-
-        FileScanner scanner =
-                new FileScanner(hasher);
-
-        IntegrityChecker checker =
-                new IntegrityChecker();
-
-        FileMonitor monitor =
-                new FileMonitor(
-                        scanner,
-                        checker
-                );
-
         Map<Path, String> baseline =
-                scanner.scan(directory);
+                scanner.scan(tempDirectory);
 
         Path newFile =
-                directory.resolve("malicious.txt");
+                tempDirectory.resolve("new.txt");
 
         Files.writeString(
                 newFile,
-                "unexpected file"
+                "new content"
         );
 
         var changes =
                 monitor.check(
-                        directory,
+                        tempDirectory,
                         baseline
                 );
 
@@ -181,42 +153,25 @@ class FileMonitorTest {
     }
 
     @Test
-    void shouldDetectDeletedFile() throws Exception {
-
-        Path directory =
-                Files.createTempDirectory("fileguard-monitor");
+    void shouldDetectDeletedFile()
+            throws Exception {
 
         Path file =
-                directory.resolve("config.txt");
+                tempDirectory.resolve("test.txt");
 
         Files.writeString(
                 file,
-                "original content"
+                "original"
         );
 
-        FileHasher hasher =
-                new FileHasher();
-
-        FileScanner scanner =
-                new FileScanner(hasher);
-
-        IntegrityChecker checker =
-                new IntegrityChecker();
-
-        FileMonitor monitor =
-                new FileMonitor(
-                        scanner,
-                        checker
-                );
-
         Map<Path, String> baseline =
-                scanner.scan(directory);
+                scanner.scan(tempDirectory);
 
         Files.delete(file);
 
         var changes =
                 monitor.check(
-                        directory,
+                        tempDirectory,
                         baseline
                 );
 
@@ -227,6 +182,113 @@ class FileMonitorTest {
                                 change.type()
                                         == ChangeType.DELETED)
                         .count()
+        );
+    }
+
+    @Test
+    void shouldGenerateVerificationReportForModifiedFile()
+            throws Exception {
+
+        Path file =
+                tempDirectory.resolve("test.txt");
+
+        Files.writeString(
+                file,
+                "original"
+        );
+
+        Map<Path, String> baseline =
+                scanner.scan(tempDirectory);
+
+        Files.writeString(
+                file,
+                "modified"
+        );
+
+        VerificationReport report =
+                monitor.verify(
+                        tempDirectory,
+                        baseline
+                );
+
+        assertEquals(
+                0,
+                report.unchanged()
+        );
+
+        assertEquals(
+                1,
+                report.modified()
+        );
+
+        assertEquals(
+                0,
+                report.newFiles()
+        );
+
+        assertEquals(
+                0,
+                report.deleted()
+        );
+
+        assertTrue(
+                report.compromised()
+        );
+
+        assertEquals(
+                1,
+                report.changes().size()
+        );
+    }
+
+    @Test
+    void shouldGenerateCleanVerificationReport()
+            throws Exception {
+
+        Path file =
+                tempDirectory.resolve("test.txt");
+
+        Files.writeString(
+                file,
+                "original"
+        );
+
+        Map<Path, String> baseline =
+                scanner.scan(tempDirectory);
+
+        VerificationReport report =
+                monitor.verify(
+                        tempDirectory,
+                        baseline
+                );
+
+        assertEquals(
+                1,
+                report.unchanged()
+        );
+
+        assertEquals(
+                0,
+                report.modified()
+        );
+
+        assertEquals(
+                0,
+                report.newFiles()
+        );
+
+        assertEquals(
+                0,
+                report.deleted()
+        );
+
+        assertTrue(
+                !report.compromised()
+        );
+
+        assertEquals(
+                1,
+                report.changes().size()
         );
     }
 }
