@@ -16,6 +16,7 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -47,8 +48,14 @@ public class FileGuardApp extends Application {
     private final FileScanner scanner =
             new FileScanner(new FileHasher());
 
+    private final BaselineManager baselineManager =
+            new BaselineManager();
+
     private final DateTimeFormatter eventTimeFormat =
             DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    private static final String BASELINE_FILE_NAME =
+            ".fileguard-baseline.txt";
 
     @Override
     public void start(Stage stage) {
@@ -287,35 +294,83 @@ public class FileGuardApp extends Application {
                             .toString()
             );
 
+            Path baselineFile =
+                    selectedDirectory.resolve(
+                            BASELINE_FILE_NAME
+                    );
+
             try {
 
-                baseline =
-                        scanner.scan(selectedDirectory);
+                if (java.nio.file.Files.exists(
+                        baselineFile)) {
 
-                filesLabel.setText(
-                        "Files monitored: "
-                                + baseline.size()
-                );
+                    baseline =
+                            baselineManager.load(
+                                    baselineFile
+                            );
 
-                modifiedLabel.setText(
-                        "Modified: 0"
-                );
+                    filesLabel.setText(
+                            "Files monitored: "
+                                    + baseline.size()
+                    );
 
-                newLabel.setText(
-                        "New: 0"
-                );
+                    modifiedLabel.setText(
+                            "Modified: 0"
+                    );
 
-                deletedLabel.setText(
-                        "Deleted: 0"
-                );
+                    newLabel.setText(
+                            "New: 0"
+                    );
 
-                clearSecurityEvents();
+                    deletedLabel.setText(
+                            "Deleted: 0"
+                    );
 
-                status.setText(
-                        "✓ BASELINE READY"
-                );
+                    clearSecurityEvents();
+
+                    status.setText(
+                            "✓ BASELINE LOADED"
+                    );
+
+                } else {
+
+                    baseline =
+                            scanner.scan(
+                                    selectedDirectory
+                            );
+
+                    baselineManager.save(
+                            baseline,
+                            baselineFile
+                    );
+
+                    filesLabel.setText(
+                            "Files monitored: "
+                                    + baseline.size()
+                    );
+
+                    modifiedLabel.setText(
+                            "Modified: 0"
+                    );
+
+                    newLabel.setText(
+                            "New: 0"
+                    );
+
+                    deletedLabel.setText(
+                            "Deleted: 0"
+                    );
+
+                    clearSecurityEvents();
+
+                    status.setText(
+                            "✓ BASELINE CREATED"
+                    );
+                }
 
             } catch (FileGuardException e) {
+
+                baseline = null;
 
                 status.setText(
                         "⚠ SCAN ERROR"
@@ -323,6 +378,19 @@ public class FileGuardApp extends Application {
 
                 showError(
                         "Could not scan folder",
+                        e.getMessage()
+                );
+
+            } catch (IOException e) {
+
+                baseline = null;
+
+                status.setText(
+                        "⚠ BASELINE ERROR"
+                );
+
+                showError(
+                        "Could not load or save baseline",
                         e.getMessage()
                 );
             }
@@ -344,7 +412,7 @@ public class FileGuardApp extends Application {
 
                 showWarning(
                         "No baseline available",
-                        "Select a folder first to create a baseline."
+                        "Select a folder first to create or load a baseline."
                 );
 
                 return;
