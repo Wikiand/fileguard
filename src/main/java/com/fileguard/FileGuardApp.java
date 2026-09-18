@@ -7,6 +7,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ public class FileGuardApp extends Application {
 
     private Button startMonitoringButton;
     private Button stopMonitoringButton;
+    private Button resetBaselineButton;
 
     private VBox securityEventsBox;
 
@@ -290,6 +293,9 @@ public class FileGuardApp extends Application {
         Button selectFolderButton =
                 new Button("Select Folder");
 
+        resetBaselineButton =
+                new Button("Reset Baseline");
+
         startMonitoringButton =
                 new Button("Start Monitoring");
 
@@ -297,9 +303,11 @@ public class FileGuardApp extends Application {
                 new Button("Stop Monitoring");
 
         selectFolderButton.setPrefWidth(105);
+        resetBaselineButton.setPrefWidth(105);
         startMonitoringButton.setPrefWidth(105);
         stopMonitoringButton.setPrefWidth(105);
 
+        resetBaselineButton.setDisable(true);
         stopMonitoringButton.setDisable(true);
 
         selectFolderButton.setOnAction(event -> {
@@ -377,6 +385,8 @@ public class FileGuardApp extends Application {
                             "Files: " + baseline.size()
                     );
 
+                    resetBaselineButton.setDisable(false);
+
                     clearSecurityEvents();
 
                     status.setText(
@@ -420,6 +430,8 @@ public class FileGuardApp extends Application {
                             "Files: " + baseline.size()
                     );
 
+                    resetBaselineButton.setDisable(false);
+
                     clearSecurityEvents();
 
                     status.setText(
@@ -430,6 +442,8 @@ public class FileGuardApp extends Application {
             } catch (FileGuardException e) {
 
                 baseline = null;
+
+                resetBaselineButton.setDisable(true);
 
                 baselineStatusLabel.setText(
                         "⚠ Baseline unavailable"
@@ -452,6 +466,8 @@ public class FileGuardApp extends Application {
 
                 baseline = null;
 
+                resetBaselineButton.setDisable(true);
+
                 baselineStatusLabel.setText(
                         "⚠ Baseline unavailable"
                 );
@@ -469,6 +485,124 @@ public class FileGuardApp extends Application {
                         e.getMessage()
                 );
             }
+        });
+
+        resetBaselineButton.setOnAction(event -> {
+
+            if (monitoring) {
+
+                showWarning(
+                        "Monitoring is active",
+                        "Stop monitoring before resetting the baseline."
+                );
+
+                return;
+            }
+
+            if (selectedDirectory == null) {
+
+                showWarning(
+                        "No folder selected",
+                        "Select a folder before resetting the baseline."
+                );
+
+                return;
+            }
+
+            Alert confirmation =
+                    new Alert(
+                            Alert.AlertType.CONFIRMATION
+                    );
+
+            confirmation.setTitle("FileGuard");
+            confirmation.setHeaderText("Reset Baseline");
+            confirmation.setContentText(
+                    "This will replace the current baseline with the "
+                            + "current state of the selected folder.\n\n"
+                            + "Existing security events will be cleared.\n\n"
+                            + "Do you want to continue?"
+            );
+
+            confirmation.showAndWait()
+                    .ifPresent(response -> {
+
+                        if (response != ButtonType.OK) {
+                            return;
+                        }
+
+                        try {
+
+                            Map<Path, String> newBaseline =
+                                    scanner.scan(
+                                            selectedDirectory
+                                    );
+
+                            Path baselineFile =
+                                    selectedDirectory.resolve(
+                                            BASELINE_FILE_NAME
+                                    );
+
+                            baselineManager.save(
+                                    newBaseline,
+                                    baselineFile
+                            );
+
+                            baseline = newBaseline;
+
+                            filesLabel.setText(
+                                    "Files monitored: "
+                                            + baseline.size()
+                            );
+
+                            modifiedLabel.setText(
+                                    "Modified: 0"
+                            );
+
+                            newLabel.setText(
+                                    "New: 0"
+                            );
+
+                            deletedLabel.setText(
+                                    "Deleted: 0"
+                            );
+
+                            baselineStatusLabel.setText(
+                                    "✓ Persistent baseline reset"
+                            );
+
+                            baselineFilesLabel.setText(
+                                    "Files: " + baseline.size()
+                            );
+
+                            clearSecurityEvents();
+
+                            status.setText(
+                                    "✓ BASELINE RESET"
+                            );
+
+                        } catch (FileGuardException e) {
+
+                            status.setText(
+                                    "⚠ BASELINE RESET FAILED"
+                            );
+
+                            showError(
+                                    "Could not reset baseline",
+                                    e.getMessage()
+                            );
+
+                        } catch (IOException e) {
+
+                            status.setText(
+                                    "⚠ BASELINE SAVE ERROR"
+                            );
+
+                            showError(
+                                    "Could not save baseline",
+                                    e.getMessage()
+                            );
+                        }
+                    });
         });
 
         startMonitoringButton.setOnAction(event -> {
@@ -506,6 +640,7 @@ public class FileGuardApp extends Application {
             startMonitoringButton.setDisable(true);
             stopMonitoringButton.setDisable(false);
             selectFolderButton.setDisable(true);
+            resetBaselineButton.setDisable(true);
 
             FileMonitor fileMonitor =
                     new FileMonitor(
@@ -537,7 +672,7 @@ public class FileGuardApp extends Application {
                                         new HashSet<>();
 
                                 List<FileChange> newEvents =
-                                        new java.util.ArrayList<>();
+                                        new ArrayList<>();
 
                                 for (FileChange change : changes) {
 
@@ -663,6 +798,11 @@ public class FileGuardApp extends Application {
 
                                     selectFolderButton
                                             .setDisable(false);
+
+                                    resetBaselineButton
+                                            .setDisable(
+                                                    baseline == null
+                                            );
                                 });
 
                             } catch (InterruptedException e) {
@@ -693,6 +833,7 @@ public class FileGuardApp extends Application {
                 new HBox(
                         8,
                         selectFolderButton,
+                        resetBaselineButton,
                         startMonitoringButton,
                         stopMonitoringButton
                 );
@@ -836,6 +977,10 @@ public class FileGuardApp extends Application {
 
         startMonitoringButton.setDisable(false);
         stopMonitoringButton.setDisable(true);
+        resetBaselineButton.setDisable(
+                selectedDirectory == null
+                        || baseline == null
+        );
     }
 
     private void showError(
